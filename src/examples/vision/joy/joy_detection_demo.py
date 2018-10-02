@@ -25,6 +25,7 @@ import signal
 import sys
 import threading
 import time
+import paho.mqtt.client as mqtt
 
 from aiy.leds import Leds
 from aiy.leds import Pattern
@@ -56,6 +57,8 @@ JOY_SOUND = ('C5q', 'E5q', 'C6q')
 SAD_SOUND = ('C6q', 'E5q', 'C5q')
 MODEL_LOAD_SOUND = ('C6w', 'c6w', 'C6w')
 BEEP_SOUND = ('E6q', 'C6q')
+
+LAST_FACE_TIMESTAMP = time.time()
 
 FONT_FILE = '/usr/share/fonts/truetype/freefont/FreeSans.ttf'
 
@@ -311,6 +314,16 @@ class JoyDetector:
                     if server:
                         data = server_inference_data(result.width, result.height, faces, joy_score)
                         server.send_inference_data(data)
+                        #client.publish('hack/portland', data)
+                        client.publish('hack/portland', 'data')
+                    
+                    #client.publish('hack/portland', str(joy_score))
+
+                    if faces:
+                        #if (LAST_FACE_TIMESTAMP + 60) < time.time():
+                        #    LAST_FACE_TIMESTAMP = time.time()
+                        client.publish('hack/portland', str(faces))
+                        time.sleep(30)
 
                     if joy_score > JOY_SCORE_PEAK > prev_joy_score:
                         player.play(JOY_SOUND)
@@ -322,6 +335,10 @@ class JoyDetector:
                     if self._done.is_set() or i == num_frames:
                         break
 
+def on_connect(client, userdata, flags, rc):
+    client.publish('hack/portland', 'connected')
+
+client = mqtt.Client()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -345,6 +362,11 @@ def main():
     if not os.path.exists('/dev/vision_spicomm'):
         logger.error('AIY Vision Bonnet is not attached or not configured properly.')
         return 1
+
+    client.on_connect = on_connect
+    client.loop_start()
+    client.connect_async('kegbot.local', 1883, 60)
+
 
     detector = JoyDetector()
     try:
