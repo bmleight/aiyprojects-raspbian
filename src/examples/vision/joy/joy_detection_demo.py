@@ -302,6 +302,14 @@ class JoyDetector:
 
             joy_score_moving_average = MovingAverage(10)
             prev_joy_score = 0.0
+            prev_num_faces = 0
+            target_x = 700
+            target_y = 600
+            threshold = 200
+            threshold_width = 50
+            target_width = 220
+            target_height = 200
+
             with CameraInference(face_detection.model()) as inference:
                 logger.info('Model loaded.')
                 player.play(MODEL_LOAD_SOUND)
@@ -315,15 +323,52 @@ class JoyDetector:
                         data = server_inference_data(result.width, result.height, faces, joy_score)
                         server.send_inference_data(data)
                         #client.publish('hack/portland', data)
-                        client.publish('hack/portland', 'data')
+                        #client.publish('hack/portland', 'data')
                     
                     #client.publish('hack/portland', str(joy_score))
-
+                    #[Face(face_score=0.90771484375, joy_score=0.014728613197803497, bounding_box=(612.0, 17.0, 347.0, 347.0))]
+                    
                     if faces:
-                        #if (LAST_FACE_TIMESTAMP + 60) < time.time():
-                        #    LAST_FACE_TIMESTAMP = time.time()
-                        client.publish('hack/portland', str(faces))
-                        time.sleep(30)
+                        bounding_box = faces[0][2]
+                        (x, y, width, height) = bounding_box
+                        print(bounding_box)
+                        #print(str(width) + ' ' + str(height) + ' ' + str(width*height))
+                        if x < (target_x - threshold):
+                            client.publish('hackbot/left')
+                            print('left')
+                            time.sleep(1)
+                        elif x > (target_x + threshold):
+                            client.publish('hackbot/right')
+                            print('right')
+                            time.sleep(1)
+                        elif y < (target_y - threshold):
+                            client.publish('hackbot/forward')
+                            print('forward')
+                            time.sleep(1)
+                        elif y > (target_y + threshold):
+                            client.publish('hackbot/backward')
+                            print('backward')
+                            time.sleep(1)
+                        elif width < (target_width - threshold_width):
+                            client.publish('hackbot/forward')
+                            print('forward')
+                            time.sleep(1)
+                        elif width > (target_width + threshold_width):
+                            client.publish('hackbot/backward')
+                            print('backward')
+                            time.sleep(1)
+                        else:
+                            client.publish('hackbot/fire')
+                            print('fire')
+                            time.sleep(1)
+                        #print(result)
+
+
+                    #if len(faces) > prev_num_faces:
+                    #    print(faces)
+                    #    client.publish('hackbot/fire', str(faces))
+
+                    prev_num_faces = len(faces)
 
                     if joy_score > JOY_SCORE_PEAK > prev_joy_score:
                         player.play(JOY_SOUND)
